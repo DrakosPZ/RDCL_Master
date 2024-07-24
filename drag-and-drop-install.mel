@@ -1,0 +1,12 @@
+/*
+	Drag and drop for Maya 2016+
+*/
+
+global proc dragAndDropInstall() {
+    string $whatIs = `whatIs dragAndDropInstall`;
+    string $path = `substring $whatIs 25 999`;
+    string $filename = `substitute "drag-and-drop-install.mel" $path "drag-and-drop-install.py"`;;
+    python("import imp;imp.load_source('_dragAndDropInstall', '"+$filename+"')");
+}
+
+dragAndDropInstall();
