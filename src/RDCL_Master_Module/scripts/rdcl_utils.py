@@ -21,6 +21,24 @@ __build_date__ = "July 23, 2024"
 # global util methods
 ##########################################################
 
+
+##########################################################
+# global parameter handling
+##########################################################
+
+def version():
+    return __version__
+
+def buildDate():
+    return __build_date__
+
+def copyRightText():
+    return 'Written by Philip Wersonig - ' + version()
+
+
+##########################################################
+# UI related
+##########################################################
 """
  Fills a UI Optional Menu with menu Items based on the given elements list
  elements list is expected to be an array of strings
@@ -28,10 +46,3 @@ __build_date__ = "July 23, 2024"
 def fillOptionMenuWithElements(elements):
     for element in elements:
         cmds.menuItem( label=element )
-
-
-def version():
-    return __version__
-
-def buildDate():
-    return __build_date__

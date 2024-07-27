@@ -43,6 +43,7 @@ def _onMayaDropped():
     shelfPath = os.path.join(srcPath, 'RDCL_Master_Module', 'resource', 'shelves').replace('\\', '/')
     mayaModulePath = os.path.join(userDirPath,'modules').replace('\\', '/')
     rdclModulePath = os.path.join(srcPath, 'RDCL_Master_Module').replace('\\', '/')
+    supportLibraryPath = os.path.join(srcPath, 'RDCL_Master_Module', 'resource', 'libraries').replace('\\', '/')
     
     if not os.path.exists(shelfPath):
         raise IOError('Cannot find ' + shelfPath)
@@ -59,6 +60,7 @@ def _onMayaDropped():
     modPath = mayaModulePath + "/rdcl_master.mod"
     with open(modPath, 'wt') as output:
         output.write('+ rdcl_master ' + version + ' ' + rdclModulePath)
+        output.write('\n+ rdcl_master_libraries ' + version + ' ' + supportLibraryPath)
     """
      Setup Library Shelf
     """

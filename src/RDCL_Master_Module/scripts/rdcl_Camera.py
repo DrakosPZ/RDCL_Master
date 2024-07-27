@@ -28,7 +28,6 @@ class PW_CameraMaster():
         selected = cmds.ls(sl=True,long=True) or []
         if len(selected) > 0:
             for sel in selected:
-               print(eachSel)
                elementCleaned = sel[1:]
                cmds.lookThru( elementCleaned )
                viewport = cmds.playblast(ae=True)
@@ -37,5 +36,3 @@ class PW_CameraMaster():
                if furtherAids:
                    cmds.camera( sel, e=True, displayResolution = True, displayFilmGate = True, displayGateMask = True, lockTransform = True)
                cmds.lookThru( 'persp' )
-                          
-    PW_TearOffCopyOfSelectedCam()

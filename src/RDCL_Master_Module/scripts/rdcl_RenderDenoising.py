@@ -10,46 +10,128 @@
 
 import maya.cmds as cmds
 import mtoa.aovs as aovs;
-import pymel.core as pmc
-from functools import partial
+import pymel.core as pmc;
+from functools import partial;
 import maya.app.renderSetup.views.overrideUtils as utils;
-import maya.app.renderSetup.model.renderSetup as renderSetup
-
+import maya.app.renderSetup.model.renderSetup as renderSetup;
+import mtoa.ui.arnoldmenu;
+import pyperclip
+import rdcl_utils as pwUtils;
 
 ##########################################################
-# Fill AOV from Light Group
+# Rendering and AOV Related Utils
 ##########################################################
-#globalParameters
-presets = ['', 'full_Assembly','Only_RGBA','RGBA_Diffuse_Specular','All_But_Emission_Transmission', 'full_DetailAssembly']
-AOVPasses = ['RGBA', 'RGBA_indirect', 'RGBA_direct', 'diffuse', 'diffuse_indirect', 'diffuse_direct', 'coat', 'coat_albedo', 'coat_indirect', 'coat_direct', 'emission', 'emission_indirect', 'emission_direct', 'sheen', 'sheen_albedo', 'sheen_indirect', 'sheen_direct', 'specular', 'specular_albedo', 'specular_indirect', 'specular_direct', 'sss', 'sss_albedo', 'sss_indirect', 'sss_direct', 'transmission', 'transmission_albedo', 'transmission_indirect', 'transmission_direct', 'albedo', 'background', 'direct', 'indirect', 'shadow', 'shadow_diff', 'shadow_mask', 'shadow_matte', 'volume', 'volume_albedo', 'volume_direct', 'volume_indirect']
-UtilityPasses = ['ID','N','P','Z','crypto_object', 'crypto_asset', 'crypto_material', 'motionvector', 'highlight', 'opacity', 'raycount', 'rim_light', 'volume_Z', 'volume_opacity']
 
-pickedUtilityPasses = ['ID','N','P','Z','crypto_object']
-pickedBasePasses = ['RGBA','albedo','background','shadow', 'volume',]
 
-#globalCounter
-PW_aovPositionCounter = 1;
+'''
+ get All AOVs
+ arrayNameType: 
+     0 => LongName/NodeName Array
+     1 => Shortname/ readable Name Array
+     2 => Short and Long Name Tulip Array
+ Depending on Shortname flag raised or not, the returned Array containes the AOVs ShortName or LongName/NodeName
+'''
+def getAOVs(arrayNameType = 0):
+    aovNames = [];
+    aovPairs = aovs.AOVInterface().getAOVNodes(names = True);
+    if arrayNameType == 0: 
+        aovNames = getAOVLongName(aovPairs);
+    if arrayNameType == 1: 
+        aovNames = getAOVShortName(aovPairs);
+    if arrayNameType == 2: 
+        aovNames = aovPairs;
+    return aovNames;
+    
+'''
+ A small helper function that reduces the list of AOVs down to only contain the AOVs shortName
+'''
+def getAOVShortName(AOVs):
+    aovNames = [];
+    for aovElement in AOVs:
+        aovNames.append(aovElement[0]);
+    return aovNames;
 
-""" Add AOVs with VarianceFilterAdded """
-def PW_addAOVWithFilter(name, type, filterType, toAdd):
-    global PW_aovPositionCounter;
+'''
+ A small helper function that reduces the list of AOVs down to only contain the AOVs longName
+'''
+def getAOVLongName(AOVs):
+    aovNames = [];
+    for aovElement in AOVs:
+        aovNames.append(aovElement[1]);
+    return aovNames;
+
+'''
+ get All AOVs as String
+ plainText: Boolean
+ checkActivity: Boolean
+ checkLightAOV: Boolean
+ Depending on the plainText Flag the string is returned as "<AOV> <AOV> <...>" or adds the noice AOV script tag to it "-l <AOV> -l <AOV> <...>"
+ Depending on the checkActivity Flag only AOVs are returned that are also turned on in the current renderView
+ Depending on the checkLightAOV Flag only AOVs are returned that are also LightGroupAOVs
+'''
+def getAOVsAsString(plainText, checkActivity, checkLightAOV = True):
+    allAOVsString = '';
+    AOVs = getAOVs(2);
+    AOVShortNames = getAOVShortName(AOVs);
+    
+    preFlag = '';
+    
+    if plainText == False: 
+        preFlag = "-l ";
+    
+    for aovString in AOVShortNames:
+        allAOVsString += preFlag + aovString + ' ';
+    
+    allAOVsString = allAOVsString[:-1];
+    if checkActivity: 
+        #TODO
+        print('getAOVsAsString with checkActivity has still to be implemented');
+    if checkLightAOV: 
+        #TODO
+        print('getAOVsAsString with checkLightAOV has still to be implemented');
+    return allAOVsString;
+
+"""a counter used to properly keep track how many and which AOV connections have been added to the rendering node in maya"""
+aovPositionCounter = 1;
+
+""" 
+    Add AOVs with VarianceFilterAdded as well as if the toAdd flag is raised, adds the filter necessary for the noice denoiser
+    
+    name: string => the name of the AOV
+    type: string => the type of data aggregated i.e. rgb, rgba, float, etc.
+    filterType: string => the type of filter used i.e. closest, gaussian, etc.
+    toAdd: boolean => if the denoising filter should be added or not
+"""
+def addAOVWithFilter(name, type, filterType, toAdd):
+    global aovPositionCounter;
     newAOV = aovs.AOVInterface().addAOV(name,aovType=type);
     if toAdd:
         aifilter = pmc.createNode('aiAOVFilter', n='aiAOVFilter');
         aifilter.setAttr('aiTranslator', 'variance');
-        cmds.connectAttr('defaultArnoldDriver.message', aovs.AOVInterface().getAOVNode(name)+'.outputs['+str(PW_aovPositionCounter)+'].driver');
-        cmds.connectAttr(aifilter+'.message', aovs.AOVInterface().getAOVNode(name)+'.outputs['+str(PW_aovPositionCounter)+'].filter');
-    PW_aovPositionCounter+=1;
+        cmds.connectAttr('defaultArnoldDriver.message', aovs.AOVInterface().getAOVNode(name)+'.outputs['+str(aovPositionCounter)+'].driver');
+        cmds.connectAttr(aifilter+'.message', aovs.AOVInterface().getAOVNode(name)+'.outputs['+str(aovPositionCounter)+'].filter');
+    aovPositionCounter+=1;
 
-""" get Lights """
-def PW_getLights():
-    return pmc.ls(type=['aiAreaLight','aiSkyDomeLight','aiPhotometricLight','aiLightPortal'])
+""" 
+    returns a list of given types of lights that are currently in the executed scene
+    
+    lights: Array[strings] => an array of strings, containign all types of ligths to be returned
+        by default set to only return arnold lights
+"""
+def getLights(lights = ['aiAreaLight','aiSkyDomeLight','aiPhotometricLight','aiLightPortal']):
+    return pmc.ls(type = lights)
 
-""" get AOVs from Lights """
-def PW_getLightGroups():
+""" 
+    returns a list of lightGroups set on the given list of lights
+    Also corrects for duplicates.
+    
+    lights: Array[Maya Light objects] => the given list of light elements of which the light groups should be extracted
+        by detault set to use getLights()
+"""
+def getLightGroupsFromLights(lights = getLights()):
     groups = [];
     filteredGroups = [];
-    for light in PW_getLights():
+    for light in lights:
         groups.append(light.aiAov.get())
     for i in range(0, len(groups)):    
         foundDuplicate = 0;
@@ -62,10 +144,13 @@ def PW_getLightGroups():
     return filteredGroups;
 
 """
-  resolves instructions and creates AOVs accordingly  
-  instruction => (AOVPass, AOVName, Create AOV, Denoise AOV)     
+    resolves instructions and creates AOVs accordingly ,
+    also corrects for data and light pass settings.
+    and also only creates the AOV if Create AOV Flag is raised in the tulip
+    
+    instruction: Array[(AOVPass, AOVName, Create AOV, Denoise AOV]) => the set of instructions
 """  
-def PW_createAOVs(instructions):
+def createAOVs(instructions):
     for instruction in instructions:
         #instruction dissection
         AOVPass = instruction[0]
@@ -79,81 +164,159 @@ def PW_createAOVs(instructions):
         type = 'rgb'
         filterType = 'gaussian'
         beDenoised = DenoiseAOV
+        #special case Parameters initialization
+        aov_params = {
+            'RGBA': ('rgba', 'gaussian', DenoiseAOV),
+            'ID': ('uint', 'gaussian', False),
+            'N': ('vector', 'closest', False),
+            'P': ('vector', 'closest', False),
+            'Pref': ('rgb', 'closest', False),
+            'Z': ('float', 'closest', False),
+            'crypto_object': ('rgb', 'gaussian', False),
+            'crypto_asset': ('rgb', 'gaussian', False),
+            'crypto_material': ('rgb', 'gaussian', False),
+            'highlight': ('rgb', 'gaussian', False),
+            'motionvector': ('rgb', 'gaussian', False),
+            'opacity': ('rgb', 'gaussian', False),
+            'rim_light': ('rgb', 'gaussian', False),
+            'shadow_diff': ('rgb', 'gaussian', False),
+            'shadow_mask': ('rgb', 'gaussian', False),
+            'cputime': ('float', 'gaussian', False),
+            'shadow_matte': ('rgba', 'gaussian', DenoiseAOV),
+            'volume_Z': ('float', 'closest', False),
+            'volume_opacity': ('rgb', 'gaussian', False)
+        }
         
-        #safeguarding against datapass denosing and right parameter settings
-        match AOVName: 
-            case 'RGBA':
-                type = 'rgba'
-            case 'ID':
-                type = 'uint'
-                beDenoised = False
-            case 'N':
-                type = 'vector'
-                filterType = 'closest'
-                beDenoised = False
-            case 'P':
-                type = 'vector'
-                filterType = 'closest'
-                beDenoised = False
-            case 'Pref':
-                filterType = 'closest'
-                beDenoised = False
-            case 'Z':
-                type = 'float'
-                filterType = 'closest'
-                beDenoised = False
-            case 'crypto_object':
-                beDenoised = False
-            case 'crypto_asset':
-                beDenoised = False
-            case 'crypto_material':
-                beDenoised = False
-            case 'highlight':
-                beDenoised = False
-            case 'motionvector':
-                beDenoised = False
-            case 'opacity':
-                beDenoised = False
-            case 'rim_light':
-                beDenoised = False
-            case 'shadow_diff':
-                beDenoised = False
-            case 'shadow_mask':
-                beDenoised = False
-            case 'cputime':
-                type = 'float'
-                beDenoised = False
-            case 'shadow_matte':
-                type = 'rgba'
-            case 'volume_Z':
-                type = 'float'
-                filterType = 'closest'
-                beDenoised = False
-            case 'volume_opacity':
-                beDenoised = False
-        
+        # Safeguarding against datapass denoising and right parameter settings
+        if AOVName in aov_params:
+            type, filterType, beDenoised = aov_params[AOVName]
+            
         if CreateAOV:
-            PW_addAOVWithFilter(AOVPass + AOVName, type, filterType, beDenoised)
+            addAOVWithFilter(AOVPass + AOVName, type, filterType, beDenoised)
 
-""" Assumes that there are no prior set AOVs aswell that the already set AOVs are instantiated with the default closest gausian Filter """
-class PW_PopulateAOVs_Window(object):
+##########################################################
+# Deactivate all AOVS of currently active Layer
+##########################################################
+
+""" Creates all overrides for all AOVs and turns them off """
+class PW_DeactivateAllAOVs(object):
     #constructor
     def __init__(self):
+        self.createAOVOverrides(getAOVs(), ["aiAOV_RGBA"]);
+        self.switchOffAllAOVsForActive();
+
+    '''
+     create Overrides and set To false
+    '''
+    def createAOVOverrides(self, aovs, ignoredAOVs):
+        ''' remove to be ignored aovs from aov list '''
+        for aov in ignoredAOVs:
+            if aov in aovs:
+                aovs.remove(aov)
+        for aov in aovs:
+            utils.createAbsoluteOverride(aov, 'enabled');
+    '''    
+     switch all AOVs overrides in the currently active RenderLayer to be turned off
+    '''
+    def switchOffAllAOVsForActive(self):
+        rs = renderSetup.instance() 
+        layer = rs.getVisibleRenderLayer()
+        collections = layer.getCollections()
+        for collection in collections:
+            if 'AOVCollection' in collection.name():
+                aovCollections = collection.getCollections()
+                for aovCollection in aovCollections:
+                    overrides = aovCollection.getOverrides()
+                    for override in overrides:
+                        cmds.setAttr(override.name()+'.attrValue', 0);
+
+##########################################################
+# Remove All set AOVs from Scene
+##########################################################
+
+""" My Implementation of the Delete All AOV Button """
+class PW_RemoveAllAOVs(object):
+    #constructor
+    def __init__(self):
+        self.removeAOVs([]);
+
+    '''
+     removes a single AOV
+    '''
+    def removeAOV(self, aov):
+        aovs.AOVInterface().removeAOV(aov);
+    
+    '''
+     removes all AOVs
+    '''
+    def removeAOVs(self, ignoredAOVs):
+        allAOVs = getAOVs(1)
+        for aov in ignoredAOVs:
+            if aov in allAOVs:
+                allAOVs.remove(aov)
+        aovs.AOVInterface().removeAOVs(allAOVs);
+
+##########################################################
+# Copy AOVs for further Denoising
+##########################################################
+
+""" A method Copying all AVOs names prepped for further use in either a denoising script or the Arnold Noice Denosier """
+class PW_CopyAOVs(object):
+    #constructor
+    def __init__(self):
+        self.copyAOVs();
+
+    '''
+     removes a single AOV
+    '''
+    def copyAOVs(self, plainText = False, checkActivity = False):
+        # for now so I don't forget about it
+        checkActivity = True;
+        allAOVsString = getAOVsAsString(plainText, checkActivity, True);
+        pyperclip.copy(allAOVsString);
+        print('copied AOVs to Clipboard');
+        print(allAOVsString);
+
+##########################################################
+# Open AOV Master Window for a mroe artist friendly AOV and Denoising Approach
+##########################################################
+
+""" 
+    A function to better manage AOVs and Denoising for repetitve tasks or beginners.
+    Assumes that there are no prior set AOVs 
+    aswell that the already set AOVs are instantiated with the default closest gausian Filter.
+    !!! This does not yet properly work with already instantiated AOVs
+    !!! And not yet checks for doubles
+    !!! The definition of Data/Utility Passes also hasn't been clearly communicated to me so there may be some fringe Passes that may be misshandled
+"""
+class PW_AOVMaster(object):
+    #constructor
+    def __init__(self):
+        #Functionality Parameters
+        self.presets = ['', 'full_Assembly','Only_RGBA','RGBA_Diffuse_Specular','All_But_Emission_Transmission', 'full_DetailAssembly']
+        self.AOVPasses = ['RGBA', 'RGBA_indirect', 'RGBA_direct', 'diffuse', 'diffuse_indirect', 'diffuse_direct', 'coat', 'coat_albedo', 'coat_indirect', 'coat_direct', 'emission', 'emission_indirect', 'emission_direct', 'sheen', 'sheen_albedo', 'sheen_indirect', 'sheen_direct', 'specular', 'specular_albedo', 'specular_indirect', 'specular_direct', 'sss', 'sss_albedo', 'sss_indirect', 'sss_direct', 'transmission', 'transmission_albedo', 'transmission_indirect', 'transmission_direct', 'albedo', 'background', 'direct', 'indirect', 'shadow', 'shadow_diff', 'shadow_mask', 'shadow_matte', 'volume', 'volume_albedo', 'volume_direct', 'volume_indirect']
+        self.UtilityPasses = ['ID','N','P','Z','crypto_object', 'crypto_asset', 'crypto_material', 'motionvector', 'highlight', 'opacity', 'raycount', 'rim_light', 'volume_Z', 'volume_opacity']
+        
+        #UI Global Parameters
         self.window = 'PW_PopulateAOVs_Window'
-        self.title = 'Better AOV And Denoising'
+        self.title = 'AOV Master'
         self.size = (900, 800)
         self.rowHorizontalGap = 5
         self.columnVerticalGapBig = 20
         self.columnVerticalGapMedium = 10
         self.columnVerticalGapSmall = 5
         self.ListOfAOVS = []
-        self.ListOfLightGroups = PW_getLightGroups()
+        self.ListOfLightGroups = getLightGroupsFromLights()
         self.AOVIndexCounter = 0
         self.UtilC = ''
         self.BaseC = ''
         self.LightGroupsCs = []
         self.PresetUI = ''
-
+        
+        self.initMainUI();
+    
+    """Initializes the Main UI and displays it"""
+    def initMainUI(self):
         #close window if already open
         if cmds.window(self.window, exists = True):
             cmds.deleteUI(self.window, window = True)
@@ -167,7 +330,7 @@ class PW_PopulateAOVs_Window(object):
         tmpRowWidth = [self.size[0]*0.78, self.size[0]*0.05]
         cmds.rowLayout(numberOfColumns = 3, width = self.size[0])
         cmds.separator(width=tmpRowWidth[0], style='none')
-        cmds.text('Written by Philip Wersonig - v0.1.0', align='right')
+        cmds.text(pwUtils.copyRightText(), align='right')
         cmds.separator(width=tmpRowWidth[1], style='none')
         cmds.setParent(self.mainCL)
         
@@ -183,7 +346,7 @@ class PW_PopulateAOVs_Window(object):
         cmds.rowLayout(numberOfColumns = 11, width = self.size[0])
         cmds.separator(width=tmpRowWidth[0], style='none')
         self.PresetUI = cmds.optionMenu(label = 'Preset Configuration')
-        fillOptionMenuWithElements(presets)
+        pwUtils.fillOptionMenuWithElements(self.presets)
         cmds.separator(width=self.rowHorizontalGap, style='none')
         self.actionBTN = cmds.button(label='Apply', width=tmpRowWidth[2], command=self.presetApply_BTNAction)
         cmds.separator(width=self.rowHorizontalGap, style='none')
@@ -213,8 +376,10 @@ class PW_PopulateAOVs_Window(object):
         cmds.separator(height=self.columnVerticalGapBig, style='none')
 
         #display
-        cmds.showWindow()
- 
+        cmds.showWindow() 
+    
+    
+    #--- create UI Functions from here
     def createUtilCheckBoxes(self):
         cmds.scrollLayout(width = self.size[0], height = self.size[1]*0.2)
         self.UtilC  = cmds.columnLayout(adjustableColumn = True)
@@ -226,7 +391,7 @@ class PW_PopulateAOVs_Window(object):
         tmpRowWidth = [self.size[0]*0.1, self.size[0]*0.8]
         cmds.rowLayout(numberOfColumns = 3, width = self.size[0])
         cmds.separator(width=tmpRowWidth[0], style='none')
-        cmds.button(label='Add Pass', width=tmpRowWidth[1], command = partial(self.addPass_BTNAction, self.UtilC, UtilityPasses, -1, [], -1, False, False, 'Util'))
+        cmds.button(label='Add Pass', width=tmpRowWidth[1], command = partial(self.addPass_BTNAction, self.UtilC, self.UtilityPasses, -1, [], -1, False, False, 'Util'))
         cmds.separator(width=tmpRowWidth[0], style='none')
         cmds.setParent(self.mainCL)
  
@@ -241,7 +406,7 @@ class PW_PopulateAOVs_Window(object):
         tmpRowWidth = [self.size[0]*0.1, self.size[0]*0.8]
         cmds.rowLayout(numberOfColumns = 3, width = self.size[0])
         cmds.separator(width=tmpRowWidth[0], style='none')
-        cmds.button(label='Add Pass', width=tmpRowWidth[1], command = partial(self.addPass_BTNAction, self.BaseC, AOVPasses, -1, [], -1, False, False, 'Base'))
+        cmds.button(label='Add Pass', width=tmpRowWidth[1], command = partial(self.addPass_BTNAction, self.BaseC, self.AOVPasses, -1, [], -1, False, False, 'Base'))
         cmds.separator(width=tmpRowWidth[0], style='none')
         cmds.setParent(self.mainCL)
 
@@ -258,22 +423,22 @@ class PW_PopulateAOVs_Window(object):
             cmds.rowLayout(numberOfColumns = 7, width = self.size[0])
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
             AOVPass = cmds.optionMenu(label = 'AOV Pass', width = tmpRowWidth[1])
-            fillOptionMenuWithElements([''])
+            pwUtils.fillOptionMenuWithElements([''])
             cmds.optionMenu(AOVPass, edit = True, select = 1, enable = False)
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
             lightGroup = cmds.optionMenu(label = 'Light Group', width = tmpRowWidth[0])
-            fillOptionMenuWithElements(groupList)
+            pwUtils.fillOptionMenuWithElements(groupList)
             cmds.optionMenu(lightGroup, edit = True, select = index + 1, enable = False)
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
-            cmds.button(label='Add Pass', command = partial(self.addPass_BTNAction, parentUI, AOVPasses, -1, groupList, index, False, False, 'LightGroup'))
+            cmds.button(label='Add Pass', command = partial(self.addPass_BTNAction, parentUI, self.AOVPasses, -1, groupList, index, False, False, 'LightGroup'))
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
             cmds.setParent(tempC)
         cmds.setParent(self.mainCL)
         
+    #--- UI Interaction functions from here on
     def createAOVs_BTNAction(self, *args):
         AOVConstructionObject = self.unpackAOVTulipforList(self.ListOfAOVS)
-        print(AOVConstructionObject)
-        PW_createAOVs(AOVConstructionObject)
+        createAOVs(AOVConstructionObject)
         
     def addPass_BTNAction(self, parentUI, AOVGroup, AOVIndex, LightGroup, LGIndex, createAOV, denoise, type, *args):
         cmds.setParent(parentUI)            
@@ -281,14 +446,14 @@ class PW_PopulateAOVs_Window(object):
         passRow = cmds.rowLayout(numberOfColumns = 11, width = self.size[0])
         cmds.separator(width = self.rowHorizontalGap, style = 'none')
         AOVPass = cmds.optionMenu(label='AOV Pass')
-        fillOptionMenuWithElements(AOVGroup)
+        pwUtils.fillOptionMenuWithElements(AOVGroup)
         if AOVIndex > -1:
             cmds.optionMenu(AOVPass, edit = True, select = AOVIndex + 1)
         else: 
             cmds.optionMenu(AOVPass, edit = True, select = 1)
         cmds.separator(width = self.rowHorizontalGap, style = 'none')
         lightGroup = cmds.optionMenu(label = 'Light Group', width = tmpRowWidth[0])
-        fillOptionMenuWithElements(LightGroup)
+        pwUtils.fillOptionMenuWithElements(LightGroup)
         if LGIndex > -1:
             cmds.optionMenu(lightGroup, edit = True, select = LGIndex + 1, enable = False)
         cmds.separator(width = self.rowHorizontalGap, style = 'none')
@@ -309,7 +474,6 @@ class PW_PopulateAOVs_Window(object):
         print(element)
         
     def presetApply_BTNAction(self, *args):
-        print('Preset Apply clicked')
         presetSelected = cmds.optionMenu(self.PresetUI, query = True, value=True)
         if presetSelected != '':
             #Construct UI Instruction based on Preset
@@ -319,7 +483,6 @@ class PW_PopulateAOVs_Window(object):
                 
        
     def presetRecreate_BTNAction(self, *args):
-        print('Preset Recreate clicked')
         presetSelected = cmds.optionMenu(self.PresetUI, query = True, value=True)
         if presetSelected != '':
             #Wipe list
@@ -338,9 +501,9 @@ class PW_PopulateAOVs_Window(object):
     def presetLoad_BTNAction(self, *args):
         print('Preset Load clicked')
         presetSelected = cmds.optionMenu(self.PresetUI, query = True, value=True)
-        
-   #---helper functions 
-   """ unpacks Tulip and window element into => (AOVPass, AOVName, Create AOV, Denoise AOV) """
+    
+    #--- helper functions 
+    """ unpacks Tulip and window element into => (AOVPass, AOVName, Create AOV, Denoise AOV) """
     def unpackAOVTulipforList(self, list):
         unpackedList = []
         for strIndex, aovNameUI, aovPassUI, createUI, denoiseUI, element, type in list:
@@ -350,7 +513,7 @@ class PW_PopulateAOVs_Window(object):
             denoise = cmds.checkBox(denoiseUI, query = True, value=True)
             unpackedList.append((aovPass, aovName, create, denoise))
         return unpackedList
-        
+    
     def getIndexFromElementInList(self, element, list):
         for index in range(len(list)):
             listElement = list[index]
@@ -481,9 +644,6 @@ class PW_PopulateAOVs_Window(object):
                     dataPassUI = data[2]
                     dataPass = cmds.optionMenu(dataPassUI, query = True, value=True)
                     if dataType == 'LightGroup':
-                        print('Lightgroup')
-                        print(data)
-                        print(uiInstruction)
                         dataLightGrpUI = data[1]
                         dataLightGrp = cmds.optionMenu(dataLightGrpUI, query = True, value=True)
                         if (instructionLightGroup == 'Every' or instructionLightGroup == dataLightGrp) :
@@ -491,12 +651,11 @@ class PW_PopulateAOVs_Window(object):
                     else: 
                         if dataPass == instructionPass:
                             self.applyCreateAndDenoiseTo(data[3], data[4], instructionCreate, instructionDenoise)
-                            
-                        
+    
+    """function to set the create and denoise checkbox parameters as one instead of seperate calls"""
     def applyCreateAndDenoiseTo(self, createUI, denoiseUI, create, denoise):
         cmds.checkBox(createUI, edit = True, value=create)
         cmds.checkBox(denoiseUI, edit = True, value=denoise)
-        
     
     """
       function takes a uiContainer to be filled and a set of uiInstructions to fill the container with, aswell as a string enum type to determine what container should be targeted
@@ -520,18 +679,18 @@ class PW_PopulateAOVs_Window(object):
             
             match type:
                 case 'Util':
-                    AOVIndex = self.getIndexFromElementInList(aov, UtilityPasses)
-                    AOVGroups = UtilityPasses
+                    AOVIndex = self.getIndexFromElementInList(aov, self.UtilityPasses)
+                    AOVGroups = self.UtilityPasses
                     uiContainer = self.UtilC
                     self.addPass_BTNAction(uiContainer, AOVGroups, AOVIndex, lightGroups, lightGroupIndex, createAOV, denoise, 'Util')
                 case 'Base':
-                    AOVIndex = self.getIndexFromElementInList(aov, AOVPasses)
-                    AOVGroups = AOVPasses
+                    AOVIndex = self.getIndexFromElementInList(aov, self.AOVPasses)
+                    AOVGroups = self.AOVPasses
                     uiContainer = self.BaseC
                     self.addPass_BTNAction(uiContainer, AOVGroups, AOVIndex, lightGroups, lightGroupIndex, createAOV, denoise, 'Base')
                 case 'LightGroup':
-                    AOVIndex = self.getIndexFromElementInList(aov, AOVPasses)
-                    AOVGroups = AOVPasses
+                    AOVIndex = self.getIndexFromElementInList(aov, self.AOVPasses)
+                    AOVGroups = self.AOVPasses
                     uiContainer = self.BaseC
                     match lightgroup:
                         case 'Every':
@@ -544,11 +703,13 @@ class PW_PopulateAOVs_Window(object):
                             lightGroups = self.ListOfLightGroups
                             lightGroupContainer = self.LightGroupsCs[lightGroupIndex][1]
                             self.addPass_BTNAction(lightGroupContainer, AOVGroups, AOVIndex, lightGroups, lightGroupIndex, createAOV, denoise, 'LightGroup')
-        
+    
+    """function to housekeep the UI and internal Datastructure to keep them on par when adding elements"""
     def addPassToDataStructure(self, lightGroup, AOVPass, create, denoising, parentElement, type):
         self.ListOfAOVS.append((self.AOVIndexCounter, lightGroup, AOVPass, create, denoising, parentElement, type))
         self.AOVIndexCounter = self.AOVIndexCounter + 1
     
+    """function to housekeep the UI and internal Datastructure to keep them on par when removing elements"""
     def removePassFromDataStructure(self, strIndex):
         position = -1
         for index in range(len(self.ListOfAOVS)):
@@ -559,95 +720,3 @@ class PW_PopulateAOVs_Window(object):
         if position > -1:
             cmds.deleteUI(self.ListOfAOVS[position][5])
             del self.ListOfAOVS[position]
-
-#Execution
-PW_PopulateAOVsWindow = PW_PopulateAOVs_Window();
-
-##########################################################
-
-import mtoa.aovs as aovs;
-import array
-
-#get All AOVs
-def getAOVs():
-    aovNames = [];
-    aovPairs = aovs.AOVInterface().getAOVNodes(names=True)
-    for aovElement in aovPairs:
-        print(aovElement[0])
-        aovNames.append(aovElement[0]);
-    return aovNames;
-
-#set AOVs
-def removeAOV(aov):
-    aovs.AOVInterface().removeAOV(aov);
-
-#Executable
-def removeAOVs():
-    aovs.AOVInterface().removeAOVs(getAOVs());
-
-##########################################################
-
-
-#SetUp Library Paths
-import sys; 
-sys.path.append(r'C:\users\phili\appdata\local\programs\python\python310\lib\site-packages');
-
-#Actual Script
-import mtoa.aovs as aovs;
-import mtoa.ui.arnoldmenu;
-import pyperclip
-
-# Fetching all AOV names as a string
-allAOVsString = '';
-aovArray = aovs.AOVInterface().getAOVNodes(names=True);
-
-for aovElement in aovArray:
-    allAOVsString += '-l ' + aovElement[0] + ' ';
-
-allAOVsString = allAOVsString[:-1];
-
-# Copy the string to the clipboard
-pyperclip.copy(allAOVsString);
-print('copied AOVs to Clipboard');
-print(allAOVsString);
-
-##########################################################
-
-import maya.cmds as cmds
-import mtoa.aovs as aovs;
-import maya.app.renderSetup.views.overrideUtils as utils;
-import maya.app.renderSetup.model.renderSetup as renderSetup
-
-#Executable
-def Executable():
-    createOverrides(getAOVs());
-    switchOffAllAOVsForActive();
-
-#get All AOVs
-def getAOVs():
-    aovNames = [];
-    aovPairs = aovs.AOVInterface().getAOVNodes();
-    if "aiAOV_RGBA" in aovPairs:
-        aovPairs.remove("aiAOV_RGBA")
-    return aovPairs;
-
-#create Overrides and set To false
-def createOverrides(aovs):
-    for aov in aovs:
-        utils.createAbsoluteOverride(aov, 'enabled');
-
-#switch all AOVs overrides in the currently active RenderLayer to be turned off
-def switchOffAllAOVsForActive():
-    rs = renderSetup.instance() 
-    layer = rs.getVisibleRenderLayer()
-    collections = layer.getCollections()
-    for collection in collections:
-        if 'AOVCollection' in collection.name():
-            aovCollections = collection.getCollections()
-            for aovCollection in aovCollections:
-                overrides = aovCollection.getOverrides()
-                for override in overrides:
-                    cmds.setAttr(override.name()+'.attrValue', 0);
-
-#Execution
-Executable();
