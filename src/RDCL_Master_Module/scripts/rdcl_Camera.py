@@ -13,9 +13,10 @@ import maya.cmds as cmds
 ##########################################################
 # Camera master Class
 ##########################################################
-class PW_CameraMaster():
-    def wasSetup():
-        print("CameraMaster is setup")        
+class PW_TearOffCopyOfSelectedCam(): 
+    #constructor
+    def __init__(self):
+        self.tearOffCopyOfSelectedCam()     
 
     """
       A free Floating utility function fro layouting adn camera artists 
@@ -24,7 +25,7 @@ class PW_CameraMaster():
           Reasoning for this  it forces the artist to make a concious decision to make the camera movable, in contrast to mayas default behaviour that encourages ruining your already setup shot
       these last aids can be turned of by changing furtherAids = True to furtherAids = False
     """
-    def PW_TearOffCopyOfSelectedCam(furtherAids = True):
+    def tearOffCopyOfSelectedCam(furtherAids = True):
         selected = cmds.ls(sl=True,long=True) or []
         if len(selected) > 0:
             for sel in selected:

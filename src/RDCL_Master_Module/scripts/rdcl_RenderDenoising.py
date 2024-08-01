@@ -18,181 +18,7 @@ import mtoa.ui.arnoldmenu;
 import pyperclip
 import rdcl_utils as pwUtils;
 
-##########################################################
-# Rendering and AOV Related Utils
-##########################################################
 
-
-'''
- get All AOVs
- arrayNameType: 
-     0 => LongName/NodeName Array
-     1 => Shortname/ readable Name Array
-     2 => Short and Long Name Tulip Array
- Depending on Shortname flag raised or not, the returned Array containes the AOVs ShortName or LongName/NodeName
-'''
-def getAOVs(arrayNameType = 0):
-    aovNames = [];
-    aovPairs = aovs.AOVInterface().getAOVNodes(names = True);
-    if arrayNameType == 0: 
-        aovNames = getAOVLongName(aovPairs);
-    if arrayNameType == 1: 
-        aovNames = getAOVShortName(aovPairs);
-    if arrayNameType == 2: 
-        aovNames = aovPairs;
-    return aovNames;
-    
-'''
- A small helper function that reduces the list of AOVs down to only contain the AOVs shortName
-'''
-def getAOVShortName(AOVs):
-    aovNames = [];
-    for aovElement in AOVs:
-        aovNames.append(aovElement[0]);
-    return aovNames;
-
-'''
- A small helper function that reduces the list of AOVs down to only contain the AOVs longName
-'''
-def getAOVLongName(AOVs):
-    aovNames = [];
-    for aovElement in AOVs:
-        aovNames.append(aovElement[1]);
-    return aovNames;
-
-'''
- get All AOVs as String
- plainText: Boolean
- checkActivity: Boolean
- checkLightAOV: Boolean
- Depending on the plainText Flag the string is returned as "<AOV> <AOV> <...>" or adds the noice AOV script tag to it "-l <AOV> -l <AOV> <...>"
- Depending on the checkActivity Flag only AOVs are returned that are also turned on in the current renderView
- Depending on the checkLightAOV Flag only AOVs are returned that are also LightGroupAOVs
-'''
-def getAOVsAsString(plainText, checkActivity, checkLightAOV = True):
-    allAOVsString = '';
-    AOVs = getAOVs(2);
-    AOVShortNames = getAOVShortName(AOVs);
-    
-    preFlag = '';
-    
-    if plainText == False: 
-        preFlag = "-l ";
-    
-    for aovString in AOVShortNames:
-        allAOVsString += preFlag + aovString + ' ';
-    
-    allAOVsString = allAOVsString[:-1];
-    if checkActivity: 
-        #TODO
-        print('getAOVsAsString with checkActivity has still to be implemented');
-    if checkLightAOV: 
-        #TODO
-        print('getAOVsAsString with checkLightAOV has still to be implemented');
-    return allAOVsString;
-
-"""a counter used to properly keep track how many and which AOV connections have been added to the rendering node in maya"""
-aovPositionCounter = 1;
-
-""" 
-    Add AOVs with VarianceFilterAdded as well as if the toAdd flag is raised, adds the filter necessary for the noice denoiser
-    
-    name: string => the name of the AOV
-    type: string => the type of data aggregated i.e. rgb, rgba, float, etc.
-    filterType: string => the type of filter used i.e. closest, gaussian, etc.
-    toAdd: boolean => if the denoising filter should be added or not
-"""
-def addAOVWithFilter(name, type, filterType, toAdd):
-    global aovPositionCounter;
-    newAOV = aovs.AOVInterface().addAOV(name,aovType=type);
-    if toAdd:
-        aifilter = pmc.createNode('aiAOVFilter', n='aiAOVFilter');
-        aifilter.setAttr('aiTranslator', 'variance');
-        cmds.connectAttr('defaultArnoldDriver.message', aovs.AOVInterface().getAOVNode(name)+'.outputs['+str(aovPositionCounter)+'].driver');
-        cmds.connectAttr(aifilter+'.message', aovs.AOVInterface().getAOVNode(name)+'.outputs['+str(aovPositionCounter)+'].filter');
-    aovPositionCounter+=1;
-
-""" 
-    returns a list of given types of lights that are currently in the executed scene
-    
-    lights: Array[strings] => an array of strings, containign all types of ligths to be returned
-        by default set to only return arnold lights
-"""
-def getLights(lights = ['aiAreaLight','aiSkyDomeLight','aiPhotometricLight','aiLightPortal']):
-    return pmc.ls(type = lights)
-
-""" 
-    returns a list of lightGroups set on the given list of lights
-    Also corrects for duplicates.
-    
-    lights: Array[Maya Light objects] => the given list of light elements of which the light groups should be extracted
-        by detault set to use getLights()
-"""
-def getLightGroupsFromLights(lights = getLights()):
-    groups = [];
-    filteredGroups = [];
-    for light in lights:
-        groups.append(light.aiAov.get())
-    for i in range(0, len(groups)):    
-        foundDuplicate = 0;
-        for j in range(i+1, len(groups)):    
-            if(groups[i] == groups[j]):    
-                foundDuplicate = 1;
-                break;
-        if(foundDuplicate == 0):
-            filteredGroups.append(groups[i]);
-    return filteredGroups;
-
-"""
-    resolves instructions and creates AOVs accordingly ,
-    also corrects for data and light pass settings.
-    and also only creates the AOV if Create AOV Flag is raised in the tulip
-    
-    instruction: Array[(AOVPass, AOVName, Create AOV, Denoise AOV]) => the set of instructions
-"""  
-def createAOVs(instructions):
-    for instruction in instructions:
-        #instruction dissection
-        AOVPass = instruction[0]
-        if instruction[1] == None:
-            AOVName = ''
-        else:
-            AOVName = '_'+instruction[1]
-        CreateAOV = instruction[2]
-        DenoiseAOV = instruction[3]
-        #parameter initialisation
-        type = 'rgb'
-        filterType = 'gaussian'
-        beDenoised = DenoiseAOV
-        #special case Parameters initialization
-        aov_params = {
-            'RGBA': ('rgba', 'gaussian', DenoiseAOV),
-            'ID': ('uint', 'gaussian', False),
-            'N': ('vector', 'closest', False),
-            'P': ('vector', 'closest', False),
-            'Pref': ('rgb', 'closest', False),
-            'Z': ('float', 'closest', False),
-            'crypto_object': ('rgb', 'gaussian', False),
-            'crypto_asset': ('rgb', 'gaussian', False),
-            'crypto_material': ('rgb', 'gaussian', False),
-            'highlight': ('rgb', 'gaussian', False),
-            'motionvector': ('rgb', 'gaussian', False),
-            'opacity': ('rgb', 'gaussian', False),
-            'rim_light': ('rgb', 'gaussian', False),
-            'shadow_diff': ('rgb', 'gaussian', False),
-            'shadow_mask': ('rgb', 'gaussian', False),
-            'cputime': ('float', 'gaussian', False),
-            'shadow_matte': ('rgba', 'gaussian', DenoiseAOV),
-            'volume_Z': ('float', 'closest', False),
-            'volume_opacity': ('rgb', 'gaussian', False)
-        }
-        
-        # Safeguarding against datapass denoising and right parameter settings
-        if AOVName in aov_params:
-            type, filterType, beDenoised = aov_params[AOVName]
-            
-        if CreateAOV:
-            addAOVWithFilter(AOVPass + AOVName, type, filterType, beDenoised)
 
 ##########################################################
 # Deactivate all AOVS of currently active Layer
@@ -202,7 +28,7 @@ def createAOVs(instructions):
 class PW_DeactivateAllAOVs(object):
     #constructor
     def __init__(self):
-        self.createAOVOverrides(getAOVs(), ["aiAOV_RGBA"]);
+        self.createAOVOverrides(pwUtils.getAOVs(), ["aiAOV_RGBA"]);
         self.switchOffAllAOVsForActive();
 
     '''
@@ -250,7 +76,7 @@ class PW_RemoveAllAOVs(object):
      removes all AOVs
     '''
     def removeAOVs(self, ignoredAOVs):
-        allAOVs = getAOVs(1)
+        allAOVs = pwUtils.getAOVs(1)
         for aov in ignoredAOVs:
             if aov in allAOVs:
                 allAOVs.remove(aov)
@@ -272,7 +98,7 @@ class PW_CopyAOVs(object):
     def copyAOVs(self, plainText = False, checkActivity = False):
         # for now so I don't forget about it
         checkActivity = True;
-        allAOVsString = getAOVsAsString(plainText, checkActivity, True);
+        allAOVsString = pwUtils.getAOVsAsString(plainText, checkActivity, True);
         pyperclip.copy(allAOVsString);
         print('copied AOVs to Clipboard');
         print(allAOVsString);
@@ -293,10 +119,230 @@ class PW_AOVMaster(object):
     #constructor
     def __init__(self):
         #Functionality Parameters
-        self.presets = ['', 'full_Assembly','Only_RGBA','RGBA_Diffuse_Specular','All_But_Emission_Transmission', 'full_DetailAssembly']
-        self.AOVPasses = ['RGBA', 'RGBA_indirect', 'RGBA_direct', 'diffuse', 'diffuse_indirect', 'diffuse_direct', 'coat', 'coat_albedo', 'coat_indirect', 'coat_direct', 'emission', 'emission_indirect', 'emission_direct', 'sheen', 'sheen_albedo', 'sheen_indirect', 'sheen_direct', 'specular', 'specular_albedo', 'specular_indirect', 'specular_direct', 'sss', 'sss_albedo', 'sss_indirect', 'sss_direct', 'transmission', 'transmission_albedo', 'transmission_indirect', 'transmission_direct', 'albedo', 'background', 'direct', 'indirect', 'shadow', 'shadow_diff', 'shadow_mask', 'shadow_matte', 'volume', 'volume_albedo', 'volume_direct', 'volume_indirect']
-        self.UtilityPasses = ['ID','N','P','Z','crypto_object', 'crypto_asset', 'crypto_material', 'motionvector', 'highlight', 'opacity', 'raycount', 'rim_light', 'volume_Z', 'volume_opacity']
-        
+        self.presets = [
+            ('BASEData', [
+                ('ID', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util')
+            ]),
+            ('BASEPass', [
+                ('RGBA', 'None', True, False, 'Base'),
+                ('albedo', 'None', True, False, 'Base'),
+                ('background', 'None', True, False, 'Base')
+            ]),
+            ('Full_DetailAssembly', [
+                ('crypto_object', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util'),
+                ('RGBA', 'None', True, True, 'Base'),
+                ('albedo', 'None', True, True, 'Base'),
+                ('background', 'None', True, True, 'Base'),
+                ('RGBA', 'Every', True, True, 'LightGroup'),
+                ('RGBA_direct', 'Every', True, True, 'LightGroup'),
+                ('RGBA_indirect', 'Every', True, True, 'LightGroup'),
+                ('diffuse', 'Every', True, True, 'LightGroup'),
+                ('diffuse_direct', 'Every', True, True, 'LightGroup'),
+                ('diffuse_indirect', 'Every', True, True, 'LightGroup'),
+                ('coat', 'Every', True, True, 'LightGroup'),
+                ('coat_direct', 'Every', True, True, 'LightGroup'),
+                ('coat_indirect', 'Every', True, True, 'LightGroup'),
+                ('emission', 'Every', True, True, 'LightGroup'),
+                ('emission_direct', 'Every', True, True, 'LightGroup'),
+                ('emission_indirect', 'Every', True, True, 'LightGroup'),
+                ('sheen', 'Every', True, True, 'LightGroup'),
+                ('sheen_direct', 'Every', True, True, 'LightGroup'),
+                ('sheen_indirect', 'Every', True, True, 'LightGroup'),
+                ('sss', 'Every', True, True, 'LightGroup'),
+                ('sss_direct', 'Every', True, True, 'LightGroup'),
+                ('sss_indirect', 'Every', True, True, 'LightGroup'),
+                ('specular', 'Every', True, True, 'LightGroup'),
+                ('specular_direct', 'Every', True, True, 'LightGroup'),
+                ('specular_indirect', 'Every', True, True, 'LightGroup'),
+                ('transmission', 'Every', True, True, 'LightGroup'),
+                ('transmission_direct', 'Every', True, True, 'LightGroup'),
+                ('transmission_indirect', 'Every', True, True, 'LightGroup'),
+                ('shadow_matte', 'Every', True, True, 'LightGroup'),
+                ('volume', 'Every', True, True, 'LightGroup')
+            ]),
+            ('Full_Simple', [
+                ('crypto_object', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util'),
+                ('RGBA', 'None', True, True, 'Base'),
+                ('albedo', 'None', True, True, 'Base'),
+                ('background', 'None', True, True, 'Base'),
+                ('RGBA', 'Every', True, True, 'LightGroup'),
+                ('diffuse', 'Every', True, True, 'LightGroup'),
+                ('coat', 'Every', True, True, 'LightGroup'),
+                ('emission', 'Every', True, True, 'LightGroup'),
+                ('sheen', 'Every', True, True, 'LightGroup'),
+                ('sss', 'Every', True, True, 'LightGroup'),
+                ('specular', 'Every', True, True, 'LightGroup'),
+                ('transmission', 'Every', True, True, 'LightGroup'),
+                ('shadow_matte', 'Every', True, True, 'LightGroup'),
+                ('volume', 'Every', True, True, 'LightGroup')
+            ]),
+            ('Full_RGBA', [
+                ('crypto_object', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util'),
+                ('RGBA', 'None', True, True, 'Base'),
+                ('albedo', 'None', True, True, 'Base'),
+                ('background', 'None', True, True, 'Base'),
+                ('RGBA', 'Every', True, True, 'LightGroup')
+            ]),
+            ('Full_Direct_Indirect', [
+                ('crypto_object', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util'),
+                ('RGBA', 'None', True, True, 'Base'),
+                ('albedo', 'None', True, True, 'Base'),
+                ('background', 'None', True, True, 'Base'),
+                ('RGBA_direct', 'Every', True, True, 'LightGroup'),
+                ('RGBA_indirect', 'Every', True, True, 'LightGroup'),
+                ('emission', 'Every', True, True, 'LightGroup')
+            ]),
+            ('DetailAssembly', [
+                ('crypto_object', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util'),
+                ('RGBA', 'None', True, True, 'Base'),
+                ('albedo', 'None', True, True, 'Base'),
+                ('background', 'None', True, True, 'Base'),
+                ('RGBA_direct', 'None', True, True, 'Base'),
+                ('RGBA_indirect', 'None', True, True, 'Base'),
+                ('diffuse', 'None', True, True, 'Base'),
+                ('diffuse_direct', 'None', True, True, 'Base'),
+                ('diffuse_indirect', 'None', True, True, 'Base'),
+                ('coat', 'None', True, True, 'Base'),
+                ('coat_direct', 'None', True, True, 'Base'),
+                ('coat_indirect', 'None', True, True, 'Base'),
+                ('emission', 'None', True, True, 'Base'),
+                ('emission_direct', 'None', True, True, 'Base'),
+                ('emission_indirect', 'None', True, True, 'Base'),
+                ('sheen', 'None', True, True, 'Base'),
+                ('sheen_direct', 'None', True, True, 'Base'),
+                ('sheen_indirect', 'None', True, True, 'Base'),
+                ('sss', 'None', True, True, 'Base'),
+                ('sss_direct', 'None', True, True, 'Base'),
+                ('sss_indirect', 'None', True, True, 'Base'),
+                ('specular', 'None', True, True, 'Base'),
+                ('specular_direct', 'None', True, True, 'Base'),
+                ('specular_indirect', 'None', True, True, 'Base'),
+                ('transmission', 'None', True, True, 'Base'),
+                ('transmission_direct', 'None', True, True, 'Base'),
+                ('transmission_indirect', 'None', True, True, 'Base'),
+                ('shadow_matte', 'None', True, True, 'Base'),
+                ('volume', 'None', True, True, 'Base')
+            ]),
+            ('Simple', [
+                ('crypto_object', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util'),
+                ('RGBA', 'None', True, True, 'Base'),
+                ('albedo', 'None', True, True, 'Base'),
+                ('background', 'None', True, True, 'Base'),
+                ('diffuse', 'None', True, True, 'Base'),
+                ('coat', 'None', True, True, 'Base'),
+                ('emission', 'None', True, True, 'Base'),
+                ('sheen', 'None', True, True, 'Base'),
+                ('sss', 'None', True, True, 'Base'),
+                ('specular', 'None', True, True, 'Base'),
+                ('transmission', 'None', True, True, 'Base'),
+                ('shadow_matte', 'None', True, True, 'Base'),
+                ('volume', 'None', True, True, 'Base')
+            ]),
+            ('RGBA', [
+                ('crypto_object', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util'),
+                ('RGBA', 'None', True, True, 'Base'),
+                ('albedo', 'None', True, True, 'Base'),
+                ('background', 'None', True, True, 'Base'),
+            ]),
+            ('Direct_Indirect', [
+                ('crypto_object', 'None', True, False, 'Util'),
+                ('N', 'None', True, False, 'Util'),
+                ('P', 'None', True, False, 'Util'),
+                ('Z', 'None', True, False, 'Util'),
+                ('RGBA', 'None', True, True, 'Base'),
+                ('albedo', 'None', True, True, 'Base'),
+                ('background', 'None', True, True, 'Base'),
+                ('RGBA_direct', 'None', True, True, 'Base'),
+                ('RGBA_indirect', 'None', True, True, 'Base'),
+                ('emission', 'None', True, True, 'Base')
+            ])
+        ]
+        self.integratedAOVs = [
+            ('ID',['Utility']),
+            ('N',['Utility']),
+            ('P',['Utility']),
+            ('Z',['Utility']),
+            ('crypto_object',['Utility']),
+            ('crypto_asset',['Utility']),
+            ('crypto_material',['Utility']),
+            ('motionvector',['Utility']),
+            ('highlight',['Utility']),
+            ('opacity',['Utility']),
+            ('raycount',['Utility']),
+            ('rim_light',['Utility']),
+            ('volume_Z',['Utility']),
+            ('volume_opacity',['Utility']),
+            ('RGBA',['Integrated','Lightgroup']),
+            ('RGBA_indirect',['Integrated','Lightgroup']),
+            ('RGBA_direct',['Integrated','Lightgroup']),
+            ('diffuse',['Integrated','Lightgroup']),
+            ('diffuse_indirect',['Integrated','Lightgroup']),
+            ('diffuse_direct',['Integrated','Lightgroup']),
+            ('coat',['Integrated','Lightgroup']),
+            ('coat_albedo',['Integrated','Lightgroup']),
+            ('coat_indirect',['Integrated','Lightgroup']),
+            ('coat_direct',['Integrated','Lightgroup']),
+            ('emission',['Integrated','Lightgroup']),
+            ('emission_indirect',['Integrated','Lightgroup']),
+            ('emission_direct',['Integrated','Lightgroup']),
+            ('sheen',['Integrated','Lightgroup']),
+            ('sheen_albedo',['Integrated','Lightgroup']),
+            ('sheen_indirect',['Integrated','Lightgroup']),
+            ('sheen_direct',['Integrated','Lightgroup']),
+            ('specular',['Integrated','Lightgroup']),
+            ('specular_albedo',['Integrated','Lightgroup']),
+            ('specular_indirect',['Integrated','Lightgroup']),
+            ('specular_direct',['Integrated','Lightgroup']),
+            ('sss',['Integrated','Lightgroup']),
+            ('sss_albedo',['Integrated','Lightgroup']),
+            ('sss_indirect',['Integrated','Lightgroup']),
+            ('sss_direct',['Integrated','Lightgroup']),
+            ('transmission',['Integrated','Lightgroup']),
+            ('transmission_albedo',['Integrated','Lightgroup']),
+            ('transmission_indirect',['Integrated','Lightgroup']),
+            ('transmission_direct',['Integrated','Lightgroup']),
+            ('albedo',['Integrated']),
+            ('background',['Integrated']),
+            ('direct',['Integrated','Lightgroup']),
+            ('indirect',['Integrated','Lightgroup']),
+            ('shadow',['Integrated']),
+            ('shadow_diff',['Integrated']),
+            ('shadow_mask',['Integrated']),
+            ('shadow_matte',['Integrated']),
+            ('volume',['Integrated','Lightgroup']),
+            ('volume_albedo',['Integrated']),
+            ('volume_direct',['Integrated','Lightgroup']),
+            ('volume_indirect',['Integrated','Lightgroup']),
+        ]
+        self.presetsShort = [''] + [preset[0] for preset in self.presets][2:]
+        self.AOVPasses = [aovPass[0] for aovPass in self.integratedAOVs if 'Integrated' in aovPass[1]]
+        self.AOVLGPasses = [aovPass[0] for aovPass in self.integratedAOVs if 'Lightgroup' in aovPass[1]]
+        self.UtilityPasses = [aovPass[0] for aovPass in self.integratedAOVs if 'Utility' in aovPass[1]]
+
         #UI Global Parameters
         self.window = 'PW_PopulateAOVs_Window'
         self.title = 'AOV Master'
@@ -306,7 +352,7 @@ class PW_AOVMaster(object):
         self.columnVerticalGapMedium = 10
         self.columnVerticalGapSmall = 5
         self.ListOfAOVS = []
-        self.ListOfLightGroups = getLightGroupsFromLights()
+        self.ListOfLightGroups = pwUtils.getLightGroupsFromLights()
         self.AOVIndexCounter = 0
         self.UtilC = ''
         self.BaseC = ''
@@ -346,7 +392,7 @@ class PW_AOVMaster(object):
         cmds.rowLayout(numberOfColumns = 11, width = self.size[0])
         cmds.separator(width=tmpRowWidth[0], style='none')
         self.PresetUI = cmds.optionMenu(label = 'Preset Configuration')
-        pwUtils.fillOptionMenuWithElements(self.presets)
+        pwUtils.fillOptionMenuWithElements(self.presetsShort)
         cmds.separator(width=self.rowHorizontalGap, style='none')
         self.actionBTN = cmds.button(label='Apply', width=tmpRowWidth[2], command=self.presetApply_BTNAction)
         cmds.separator(width=self.rowHorizontalGap, style='none')
@@ -430,7 +476,7 @@ class PW_AOVMaster(object):
             pwUtils.fillOptionMenuWithElements(groupList)
             cmds.optionMenu(lightGroup, edit = True, select = index + 1, enable = False)
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
-            cmds.button(label='Add Pass', command = partial(self.addPass_BTNAction, parentUI, self.AOVPasses, -1, groupList, index, False, False, 'LightGroup'))
+            cmds.button(label='Add Pass', command = partial(self.addPass_BTNAction, parentUI, self.AOVLGPasses, -1, groupList, index, False, False, 'LightGroup'))
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
             cmds.setParent(tempC)
         cmds.setParent(self.mainCL)
@@ -438,7 +484,7 @@ class PW_AOVMaster(object):
     #--- UI Interaction functions from here on
     def createAOVs_BTNAction(self, *args):
         AOVConstructionObject = self.unpackAOVTulipforList(self.ListOfAOVS)
-        createAOVs(AOVConstructionObject)
+        pwUtils.createAOVs(AOVConstructionObject)
         
     def addPass_BTNAction(self, parentUI, AOVGroup, AOVIndex, LightGroup, LGIndex, createAOV, denoise, type, *args):
         cmds.setParent(parentUI)            
@@ -529,101 +575,7 @@ class PW_AOVMaster(object):
     """
     def createUIInstructions(self, category):
         instructions = []
-        match category:
-            case 'BASEData':
-                instructions.append(('ID', 'None', True, False, 'Util'))
-                instructions.append(('N', 'None', True, False, 'Util'))
-                instructions.append(('P', 'None', True, False, 'Util'))
-                instructions.append(('Z', 'None', True, False, 'Util'))
-            case 'BASEPass':
-                instructions.append(('RGBA', 'None', True, False, 'Base'))
-                instructions.append(('albedo', 'None', True, False, 'Base'))
-                instructions.append(('background', 'None', True, False, 'Base'))
-            case 'full_DetailAssembly':
-                instructions.append(('crypto_object', 'None', True, False, 'Util'))
-                instructions.append(('N', 'None', True, False, 'Util'))
-                instructions.append(('P', 'None', True, False, 'Util'))
-                instructions.append(('Z', 'None', True, False, 'Util'))
-                instructions.append(('RGBA', 'None', True, True, 'Base'))
-                instructions.append(('albedo', 'None', True, True, 'Base'))
-                instructions.append(('background', 'None', True, True, 'Base'))
-                instructions.append(('RGBA', 'Every', True, True, 'LightGroup'))
-                instructions.append(('RGBA_direct', 'Every', True, True, 'LightGroup'))
-                instructions.append(('RGBA_indirect', 'Every', True, True, 'LightGroup'))
-                instructions.append(('diffuse', 'Every', True, True, 'LightGroup'))
-                instructions.append(('diffuse_direct', 'Every', True, True, 'LightGroup'))
-                instructions.append(('diffuse_indirect', 'Every', True, True, 'LightGroup'))
-                instructions.append(('coat', 'Every', True, True, 'LightGroup'))
-                instructions.append(('coat_direct', 'Every', True, True, 'LightGroup'))
-                instructions.append(('coat_indirect', 'Every', True, True, 'LightGroup'))
-                instructions.append(('emission', 'Every', True, True, 'LightGroup'))
-                instructions.append(('emission_direct', 'Every', True, True, 'LightGroup'))
-                instructions.append(('emission_indirect', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sheen', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sheen_direct', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sheen_indirect', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sss', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sss_direct', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sss_indirect', 'Every', True, True, 'LightGroup'))
-                instructions.append(('specular', 'Every', True, True, 'LightGroup'))
-                instructions.append(('specular_direct', 'Every', True, True, 'LightGroup'))
-                instructions.append(('specular_indirect', 'Every', True, True, 'LightGroup'))
-                instructions.append(('transmission', 'Every', True, True, 'LightGroup'))
-                instructions.append(('transmission_direct', 'Every', True, True, 'LightGroup'))
-                instructions.append(('transmission_indirect', 'Every', True, True, 'LightGroup'))
-                instructions.append(('shadow_matte', 'Every', True, True, 'LightGroup'))
-                instructions.append(('volume', 'Every', True, True, 'LightGroup'))
-            case 'full_Assembly':
-                instructions.append(('crypto_object', 'None', True, False, 'Util'))
-                instructions.append(('N', 'None', True, False, 'Util'))
-                instructions.append(('P', 'None', True, False, 'Util'))
-                instructions.append(('Z', 'None', True, False, 'Util'))
-                instructions.append(('RGBA', 'None', True, True, 'Base'))
-                instructions.append(('albedo', 'None', True, True, 'Base'))
-                instructions.append(('background', 'None', True, True, 'Base'))
-                instructions.append(('RGBA', 'Every', True, True, 'LightGroup'))
-                instructions.append(('diffuse', 'Every', True, True, 'LightGroup'))
-                instructions.append(('coat', 'Every', True, True, 'LightGroup'))
-                instructions.append(('emission', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sheen', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sss', 'Every', True, True, 'LightGroup'))
-                instructions.append(('specular', 'Every', True, True, 'LightGroup'))
-                instructions.append(('transmission', 'Every', True, True, 'LightGroup'))
-                instructions.append(('shadow_matte', 'Every', True, True, 'LightGroup'))
-                instructions.append(('volume', 'Every', True, True, 'LightGroup'))
-            case 'Only_RGBA':
-                instructions.append(('crypto_object', 'None', True, False, 'Util'))
-                instructions.append(('N', 'None', True, False, 'Util'))
-                instructions.append(('P', 'None', True, False, 'Util'))
-                instructions.append(('Z', 'None', True, False, 'Util'))
-                instructions.append(('RGBA', 'None', True, True, 'Base'))
-                instructions.append(('albedo', 'None', True, True, 'Base'))
-                instructions.append(('background', 'None', True, True, 'Base'))
-                instructions.append(('RGBA', 'Every', True, True, 'LightGroup'))
-            case 'RGBA_Diffuse_Specular':
-                instructions.append(('crypto_object', 'None', True, False, 'Util'))
-                instructions.append(('N', 'None', True, False, 'Util'))
-                instructions.append(('P', 'None', True, False, 'Util'))
-                instructions.append(('Z', 'None', True, False, 'Util'))
-                instructions.append(('RGBA', 'None', True, True, 'Base'))
-                instructions.append(('albedo', 'None', True, True, 'Base'))
-                instructions.append(('background', 'None', True, True, 'Base'))
-                instructions.append(('RGBA', 'Every', True, True, 'LightGroup'))
-                instructions.append(('diffuse', 'Every', True, True, 'LightGroup'))
-                instructions.append(('specular', 'Every', True, True, 'LightGroup'))
-            case 'All_But_Emission_Transmission':
-                instructions.append(('crypto_object', 'None', True, False, 'Util'))
-                instructions.append(('N', 'None', True, False, 'Util'))
-                instructions.append(('P', 'None', True, False, 'Util'))
-                instructions.append(('Z', 'None', True, False, 'Util'))
-                instructions.append(('RGBA', 'None', True, True, 'Base'))
-                instructions.append(('albedo', 'None', True, True, 'Base'))
-                instructions.append(('background', 'None', True, True, 'Base'))
-                instructions.append(('RGBA', 'Every', True, True, 'LightGroup'))
-                instructions.append(('diffuse', 'Every', True, True, 'LightGroup'))
-                instructions.append(('coat', 'Every', True, True, 'LightGroup'))
-                instructions.append(('sheen', 'Every', True, True, 'LightGroup'))
-                instructions.append(('specular', 'Every', True, True, 'LightGroup'))
+        instructions = dict(self.presets).get(category, [])
         return instructions
     
     """
