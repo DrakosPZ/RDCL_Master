@@ -34,7 +34,55 @@ global proc shelf_RDCLMasterPW () {
         -style "iconOnly" 
         -marginWidth 0
         -marginHeight 1
-        -command "from rdcl_Camera import PW_CameraMaster as cameraMaster\n\ncameraMaster.PW_TearOffCopyOfSelectedCam();" 
+        -command "from rdcl_Camera import PW_TearOffCopyOfSelectedCam as tearOffCopyOfSelectedCam\n\ntearOffCopyOfSelectedCam();" 
+        -sourceType "python" 
+        -commandRepeatable 1
+        -flat 1
+    ;
+    separator
+        -enable 1
+        -width 34
+        -height 35
+        -manage 1
+        -visible 1
+        -preventOverride 0
+        -enableBackground 0
+        -backgroundColor 0 0 0 
+        -highlightColor 0.321569 0.521569 0.65098 
+        -style "shelf" 
+        -horizontal 0
+    ;
+    shelfButton
+        -enableCommandRepeat 1
+        -flexibleWidthType 3
+        -flexibleWidthValue 32
+        -enable 1
+        -width 35
+        -height 34
+        -manage 1
+        -visible 1
+        -preventOverride 0
+        -annotation "Names Selected/AllLights' AOVs as the name of the respective Light" 
+        -enableBackground 0
+        -backgroundColor 0 0 0 
+        -highlightColor 0.321569 0.521569 0.65098 
+        -align "center" 
+        -label "NameAOVsOnLights" 
+        -labelOffset 0
+        -rotation 0
+        -flipX 0
+        -flipY 0
+        -useAlpha 1
+        -font "plainLabelFont" 
+        -imageOverlayLabel "NameLights" 
+        -overlayLabelColor 0.8 0.8 0.8 
+        -overlayLabelBackColor 0 0 0 0.5 
+        -image "commandButton.png" 
+        -image1 "commandButton.png" 
+        -style "iconOnly" 
+        -marginWidth 0
+        -marginHeight 1
+        -command "from rdcl_Light import PW_SetLightGroupsToNames as setLightGroupsToNames\n\nsetLightGroupsToNames();" 
         -sourceType "python" 
         -commandRepeatable 1
         -flat 1
@@ -82,7 +130,7 @@ global proc shelf_RDCLMasterPW () {
         -style "iconOnly" 
         -marginWidth 0
         -marginHeight 1
-        -command "from rdcl_RenderDenoising import PW_RenderingMaster as renderingMaster\n\nrenderingMaster.wasSetup();" 
+        -command "from rdcl_RenderDenoising import PW_AOVMaster as aovMaster\n\naovMaster();" 
         -sourceType "python" 
         -commandRepeatable 1
         -flat 1
