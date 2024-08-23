@@ -351,6 +351,7 @@ class PW_AOVMaster(object):
         self.columnVerticalGapBig = 20
         self.columnVerticalGapMedium = 10
         self.columnVerticalGapSmall = 5
+        
         self.ListOfAOVS = []
         self.ListOfLightGroups = pwUtils.getLightGroupsFromLights()
         self.AOVIndexCounter = 0

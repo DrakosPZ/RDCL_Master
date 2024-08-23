@@ -38,6 +38,50 @@ def copyRightText():
     return 'Written by Philip Wersonig - ' + version()
 
 
+##########################################################
+# Light Related Utils
+##########################################################
+
+mayaLights = ['ambientLight','directionalLight','pointLight', 'spotLight','areaLight','volumeLight']
+
+arnoldLights = ['aiAreaLight','aiSkyDomeLight','aiPhotometricLight','aiLightPortal'];
+
+allLights = mayaLights + arnoldLights;
+
+'''
+ checks if the given Light is a Maya Light
+ 
+ lightStr => String name of the light source
+ 
+ returns true if first found light with that name is a default Maya light, otherwise false
+'''
+def lightIsMayaLight(lightStr):
+    return lightIsOfType(lightStr, mayaLights);
+
+'''
+ checks if the given Light is a Arnold Light
+ 
+ lightStr => String name of the light source
+ 
+ returns true if first found light with that name is a default Arnold light, otherwise false
+'''
+def lightIsArnoldLight(lightStr):
+    return lightIsOfType(lightStr, arnoldLights);
+
+'''
+ checks if the given Light is of th egiven Type Array
+ 
+ lightStr => String name of the light source
+ lightTypes => [] a Strring array containg all Types to be checked against
+ 
+ returns true if first found light with that name is of one of the lightTypes, otherwise false
+'''
+def lightIsOfType(lightStr, lightTypes):
+    node = cmds.ls ('*'+lightStr, long=True, showType = True);
+    nodeType = node[1];
+    if nodeType in lightTypes:
+        return True;
+    return False;
 
 ##########################################################
 # Rendering and AOV Related Utils
