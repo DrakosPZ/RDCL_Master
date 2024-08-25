@@ -62,19 +62,16 @@
 	<h3>Rendering Related.</h3>
 	<h4>Deactivate All AOVs</h4>
 	<p>A simple tool creating in the currently active render layer an absolut override for every AOV deactivating them for this render layer.</p>
-	
 	<h4>Remove All AOVs</h4>
 	<p>My Implementation of the Delete All AOV Button.</p>
-	
 	<h4>Copy AOVs for Denoising</h4>
 	<p>A tool Copying all AVOs names prepped for further use in either a denoising script or the Arnold Noice Denosier.</p>
-	
 	<h4>AOV Master Tool</h4>
 	<p>A tool making the AOV creation easier. Allowing also use pre defined custom presets to quick create detailed AOV Pipelines. </p>
 </div>
 
 <div>
 	<h3>Denoising Related.</h3>
-	<h4>Denoising Related.</h4>
-	<p>A brief listing of everything this collection can do.</p>
+	<h4>None</h4>
+	<p>Yet to be added</p>
 </div>
