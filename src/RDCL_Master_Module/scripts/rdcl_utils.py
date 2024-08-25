@@ -16,8 +16,8 @@ import mtoa.aovs as aovs;
 # global parameters
 ##########################################################
 
-__version__ = "0.2.0"
-__build_date__ = "July 23, 2024"
+__version__ = "0.2.1"
+__build_date__ = "August 25, 2024"
 
 ##########################################################
 # global util methods
