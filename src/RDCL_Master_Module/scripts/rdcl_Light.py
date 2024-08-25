@@ -16,7 +16,7 @@ import re
 # Name Light Group AOVs as Lights Names
 ##########################################################
 
-""" Creates all overrides for all AOVs and turns them off """
+""" Set Names of AOVs to the names the light source """
 class PW_SetLightGroupsToNames(object):
     #constructor
     def __init__(self):

@@ -52,7 +52,10 @@
 <div>
 	<h3>Light Related.</h3>
 	<h4>Set Light to LightGroup AOV Name</h4>
-	<p>TODO</p>
+	<p>
+		A tool to automatically set the Lights related AOV Group to the name of Light Object</br>
+		Double-Click opens the config window with which you can control how it sets the AOV Name / i.e. which part of the Light Objects name it uses, aswell as which types of lights it edits. Per default it only edits Arnold Lights.
+	</p>
 </div>
 
 <div>
