@@ -19,11 +19,11 @@ class PW_TearOffCopyOfSelectedCam():
         self.tearOffCopyOfSelectedCam()     
 
     """
-      A free Floating utility function fro layouting adn camera artists 
-      Makes the tear off tool from default maya mroe usable by putting it into a function, 
+      A free Floating utility function for layout and camera artists 
+      Makes the tear off tool from default maya more usable by putting it into a function, 
       also automatically locks the camera aswell as turning on the film and resolution gate
           Reasoning for this  it forces the artist to make a concious decision to make the camera movable, in contrast to mayas default behaviour that encourages ruining your already setup shot
-      these last aids can be turned of by changing furtherAids = True to furtherAids = False
+      these last aids can be turned off by changing furtherAids = True to furtherAids = False
       TODO currently only works if the main viewport is selected when executing the script
     """
     def tearOffCopyOfSelectedCam(furtherAids = True):
