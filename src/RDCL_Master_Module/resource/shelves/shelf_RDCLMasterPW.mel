@@ -25,7 +25,6 @@ global proc shelf_RDCLMasterPW () {
         -flipX 0
         -flipY 0
         -useAlpha 1
-        -font "plainLabelFont" 
         -imageOverlayLabel "Tear Off Cam" 
         -overlayLabelColor 0.8 0.8 0.8 
         -overlayLabelBackColor 0 0 0 0.5 
@@ -73,7 +72,6 @@ global proc shelf_RDCLMasterPW () {
         -flipX 0
         -flipY 0
         -useAlpha 1
-        -font "plainLabelFont" 
         -imageOverlayLabel "NameLights" 
         -overlayLabelColor 0.8 0.8 0.8 
         -overlayLabelBackColor 0 0 0 0.5 
@@ -82,8 +80,9 @@ global proc shelf_RDCLMasterPW () {
         -style "iconOnly" 
         -marginWidth 0
         -marginHeight 1
-        -command "from rdcl_Light import PW_SetLightGroupsToNames as setLightGroupsToNames\n\nsetLightGroupsToNames();" 
+        -command "from rdcl_Light import PW_SetLightGroupsToNames as setLightGroupsToNames\n\nsetLightGroupsToNamesHolder = setLightGroupsToNames();\nsetLightGroupsToNames.simpleClick(setLightGroupsToNamesHolder);" 
         -sourceType "python" 
+        -doubleClickCommand "from rdcl_Light import PW_SetLightGroupsToNames as setLightGroupsToNames\n\nsetLightGroupsToNamesHolder = setLightGroupsToNames();\nsetLightGroupsToNames.doubleClick(setLightGroupsToNamesHolder);" 
         -commandRepeatable 1
         -flat 1
     ;
@@ -121,7 +120,6 @@ global proc shelf_RDCLMasterPW () {
         -flipX 0
         -flipY 0
         -useAlpha 1
-        -font "plainLabelFont" 
         -imageOverlayLabel "AOV Master" 
         -overlayLabelColor 0.8 0.8 0.8 
         -overlayLabelBackColor 0 0 0 0.5 
@@ -156,7 +154,6 @@ global proc shelf_RDCLMasterPW () {
         -flipX 0
         -flipY 0
         -useAlpha 1
-        -font "plainLabelFont" 
         -imageOverlayLabel "Disable AOVs" 
         -overlayLabelColor 0.8 0.8 0.8 
         -overlayLabelBackColor 0 0 0 0.5 
@@ -191,7 +188,6 @@ global proc shelf_RDCLMasterPW () {
         -flipX 0
         -flipY 0
         -useAlpha 1
-        -font "plainLabelFont" 
         -imageOverlayLabel "Remove AOVs" 
         -overlayLabelColor 0.8 0.8 0.8 
         -overlayLabelBackColor 0 0 0 0.5 
@@ -226,7 +222,6 @@ global proc shelf_RDCLMasterPW () {
         -flipX 0
         -flipY 0
         -useAlpha 1
-        -font "plainLabelFont" 
         -imageOverlayLabel "Copy AOVs" 
         -overlayLabelColor 0.8 0.8 0.8 
         -overlayLabelBackColor 0 0 0 0.5 
