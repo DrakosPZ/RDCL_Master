@@ -47,14 +47,15 @@ class PW_DeactivateAllAOVs(object):
     def switchOffAllAOVsForActive(self):
         rs = renderSetup.instance() 
         layer = rs.getVisibleRenderLayer()
-        collections = layer.getCollections()
-        for collection in collections:
-            if 'AOVCollection' in collection.name():
-                aovCollections = collection.getCollections()
-                for aovCollection in aovCollections:
-                    overrides = aovCollection.getOverrides()
-                    for override in overrides:
-                        cmds.setAttr(override.name()+'.attrValue', 0);
+        if not isinstance(layer, maya.app.renderSetup.model.renderLayer.DefaultRenderLayer):
+            collections = layer.getCollections()
+            for collection in collections:
+                if 'AOVCollection' in collection.name():
+                    aovCollections = collection.getCollections()
+                    for aovCollection in aovCollections:
+                        overrides = aovCollection.getOverrides()
+                        for override in overrides:
+                            cmds.setAttr(override.name()+'.attrValue', 0);
 
 ##########################################################
 # Remove All set AOVs from Scene
