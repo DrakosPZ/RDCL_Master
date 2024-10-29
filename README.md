@@ -67,7 +67,7 @@
 	<h4>Copy AOVs for Denoising</h4>
 	<p>A tool Copying all AVOs names prepped for further use in either a denoising script or the Arnold Noice Denosier.</p>
 	<h4>AOV Master Tool</h4>
-	<p>A tool making the AOV creation easier. Allowing also use pre defined custom presets to quick create detailed AOV Pipelines. </p>
+	<p>A tool making the AOV creation easier. Allowing also the use of pre defined custom AOV presets to quick create detailed AOV Pipelines, keeping the detailed AOV Group Spreading whithout having to set it up everytime for every scene.  </p>
 </div>
 
 <div>
