@@ -18,6 +18,8 @@ import mtoa.ui.arnoldmenu;
 import pyperclip
 import rdcl_utils as pwUtils;
 
+import json
+
 
 
 ##########################################################
@@ -101,8 +103,6 @@ class PW_CopyAOVs(object):
         checkActivity = True;
         allAOVsString = pwUtils.getAOVsAsString(plainText, checkActivity, True);
         pyperclip.copy(allAOVsString);
-        print('copied AOVs to Clipboard');
-        print(allAOVsString);
 
 ##########################################################
 # Open AOV Master Window for a mroe artist friendly AOV and Denoising Approach
@@ -343,6 +343,7 @@ class PW_AOVMaster(object):
         self.AOVPasses = [aovPass[0] for aovPass in self.integratedAOVs if 'Integrated' in aovPass[1]]
         self.AOVLGPasses = [aovPass[0] for aovPass in self.integratedAOVs if 'Lightgroup' in aovPass[1]]
         self.UtilityPasses = [aovPass[0] for aovPass in self.integratedAOVs if 'Utility' in aovPass[1]]
+        self.custom = []
 
         #UI Global Parameters
         self.window = 'PW_PopulateAOVs_Window'
@@ -482,7 +483,20 @@ class PW_AOVMaster(object):
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
             cmds.setParent(tempC)
         cmds.setParent(self.mainCL)
-        
+
+    def refreshInstructionUI(self):
+        presetSelected = cmds.optionMenu(self.PresetUI, query = True, value=True)
+        if presetSelected != '':
+            #Wipe list
+            while len(self.ListOfAOVS) > 0:
+                element = self.ListOfAOVS[0]
+                self.removePassFromDataStructure(element[0])
+            #Construct UI Instruction based on Preset
+            instructions = self.createUIInstructions(presetSelected)
+            #Execute Instructions
+            self.executeUiInstructions(instructions)
+
+    
     #--- UI Interaction functions from here on
     def createAOVs_BTNAction(self, *args):
         AOVConstructionObject = self.unpackAOVTulipforList(self.ListOfAOVS)
@@ -522,12 +536,7 @@ class PW_AOVMaster(object):
         print(element)
         
     def presetApply_BTNAction(self, *args):
-        presetSelected = cmds.optionMenu(self.PresetUI, query = True, value=True)
-        if presetSelected != '':
-            #Construct UI Instruction based on Preset
-            instructions = self.createUIInstructions(presetSelected)
-            #Apply Instructions
-            self.applyUiInstructions(instructions)
+        self.refreshInstructionUI()
                 
        
     def presetRecreate_BTNAction(self, *args):
@@ -543,23 +552,71 @@ class PW_AOVMaster(object):
             self.executeUiInstructions(instructions)
         
     def presetSave_BTNAction(self, *args):
-        print('Preset Save clicked')
-        presetSelected = cmds.optionMenu(self.PresetUI, query = True, value=True)
+        AOVConstructionObject = self.unpackAOVTulipforList(self.ListOfAOVS, True)
+        dialogResult = cmds.fileDialog2(bbo = 2, cap = 'Open Template as', fm = 0)
+        if len(dialogResult) > 0:
+            pickedFile = dialogResult[0]
+            file = open(pickedFile, "w")
+            file.write(pwUtils.jsonfy(AOVConstructionObject))
+            file.close()
+            cmds.confirmDialog(
+                title='AOV Master Templater',
+                message='Template has been stored to given location.',
+            )
+        else : 
+            cmds.confirmDialog(
+                title='AOV Master Templater',
+                message='Error: Provide one Location with a given Filename.txt',
+            )
         
     def presetLoad_BTNAction(self, *args):
-        print('Preset Load clicked')
-        presetSelected = cmds.optionMenu(self.PresetUI, query = True, value=True)
+        dialogResult = cmds.fileDialog2(bbo = 2, cap = 'Open Template as', fm = 1)
+        if len(dialogResult) > 0:
+            pickedFile = dialogResult[0]
+            file = open(pickedFile, "r")
+            fileOutput = file.read()
+            file.close()
+
+            python_obj = pwUtils.deJsonfy(fileOutput)
+            AOVCustomTemplate = []
+            for element in python_obj:
+                partialTuple = ()
+                for partial in element:
+                    partialTuple = partialTuple + (partial, )
+                AOVCustomTemplate.append(partialTuple)
+            
+            self.custom = AOVCustomTemplate
+            menuItems = cmds.optionMenu(self.PresetUI, q=True, itemListLong=True)
+            if menuItems:
+                cmds.deleteUI(menuItems)
+            pwUtils.fillOptionMenuWithElements(self.presetsShort + ['Custom'], self.PresetUI)
+            cmds.optionMenu(self.PresetUI, edit = True, select = len(self.presetsShort + ['Custom']))
+
+            self.refreshInstructionUI()
+
+            cmds.confirmDialog(
+                title='AOV Master Templater',
+                message='Template has been loaded and added as Custom Preset.',
+            )
+        else : 
+            cmds.confirmDialog(
+                title='AOV Master Templater',
+                message='Error: Provide one Location with a given Filename.txt',
+            )
     
     #--- helper functions 
-    """ unpacks Tulip and window element into => (AOVPass, AOVName, Create AOV, Denoise AOV) """
-    def unpackAOVTulipforList(self, list):
+    """ unpacks Tulip and window element into => (AOVPass, AOVName, Create AOV, Denoise AOV, (optional)Origin) """
+    def unpackAOVTulipforList(self, list, origin = False):
         unpackedList = []
         for strIndex, aovNameUI, aovPassUI, createUI, denoiseUI, element, type in list:
             aovName = cmds.optionMenu(aovNameUI, query = True, value=True)
             aovPass = cmds.optionMenu(aovPassUI, query = True, value=True)
             create = cmds.checkBox(createUI, query = True, value=True)
             denoise = cmds.checkBox(denoiseUI, query = True, value=True)
-            unpackedList.append((aovPass, aovName, create, denoise))
+            if origin:
+                unpackedList.append((aovPass, aovName, create, denoise, type))
+            else:
+                unpackedList.append((aovPass, aovName, create, denoise))
         return unpackedList
     
     def getIndexFromElementInList(self, element, list):
@@ -568,6 +625,7 @@ class PW_AOVMaster(object):
             if listElement == element:
                 return index         
     
+
     """
       This function takes a category, and depending on the category it generates a set of UI instructions for further use
       these can be 
@@ -577,7 +635,10 @@ class PW_AOVMaster(object):
     """
     def createUIInstructions(self, category):
         instructions = []
-        instructions = dict(self.presets).get(category, [])
+        if category == 'Custom': 
+            instructions = self.custom
+        else :
+            instructions = dict(self.presets).get(category, [])
         return instructions
     
     """

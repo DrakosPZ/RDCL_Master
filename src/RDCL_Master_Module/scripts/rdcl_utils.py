@@ -11,6 +11,7 @@
 import maya.cmds as cmds;
 import pymel.core as pmc;
 import mtoa.aovs as aovs;
+import json;
 
 ##########################################################
 # global parameters
@@ -292,6 +293,28 @@ def createAOVs(instructions):
  Fills a UI Optional Menu with menu Items based on the given elements list
  elements list is expected to be an array of strings
 """
-def fillOptionMenuWithElements(elements):
-    for element in elements:
-        cmds.menuItem( label=element )
+def fillOptionMenuWithElements(elements, parent = ''):
+    if len(parent) > 0:
+        for element in elements:
+            cmds.menuItem( label=element , parent = parent)
+    else:
+        for element in elements:
+            cmds.menuItem( label=element )
+
+
+
+##########################################################
+# Data management related
+##########################################################
+"""
+ Handles turning objects into JSON format
+ so far it assumes the object is an array of string
+"""
+def jsonfy(object):
+    return json.dumps(object)
+"""
+ Handles turning JSON objects into python objects format
+ so far it assumes the object is an array of string
+"""
+def deJsonfy(object):
+    return json.loads(object)
