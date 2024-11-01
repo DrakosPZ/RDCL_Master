@@ -360,6 +360,7 @@ class PW_AOVMaster(object):
         self.UtilC = ''
         self.BaseC = ''
         self.LightGroupsCs = []
+        self.LightGroupEvery = []
         self.PresetUI = ''
         
         self.initMainUI();
@@ -464,6 +465,7 @@ class PW_AOVMaster(object):
         
     def createAOVLightGroupRow(self, groupList):
         tempC = cmds.scrollLayout(width = self.size[0], height = self.size[1]*0.4)
+        # set up per light group management UI
         for index in range(len(groupList)):
             lightGroup = groupList[index]
             parentUI  = cmds.columnLayout(adjustableColumn = True)
@@ -482,6 +484,27 @@ class PW_AOVMaster(object):
             cmds.button(label='Add Pass', command = partial(self.addPass_BTNAction, parentUI, self.AOVLGPasses, -1, groupList, index, False, False, 'LightGroup'))
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
             cmds.setParent(tempC)
+
+        # setup Every Templating Section
+        cmds.separator(height=self.columnVerticalGapMedium, style='none')
+        cmds.text('Templating Every Light Group AOVs')
+        cmds.text('These are only used for the Tempalte Feature')
+        parentUI  = cmds.columnLayout(adjustableColumn = True)
+        self.LightGroupEvery.append(('Every', parentUI))
+        tmpRowWidth = [self.size[0]*0.3, self.size[0]*0.3, self.size[0]*0.1, self.size[0]*0.15]
+        cmds.rowLayout(numberOfColumns = 7, width = self.size[0])
+        cmds.separator(width = self.rowHorizontalGap, style = 'none')
+        AOVPass = cmds.optionMenu(label = 'AOV Pass', width = tmpRowWidth[1])
+        pwUtils.fillOptionMenuWithElements([''])
+        cmds.optionMenu(AOVPass, edit = True, select = 1, enable = False)
+        cmds.separator(width = self.rowHorizontalGap, style = 'none')
+        lightGroup = cmds.optionMenu(label = 'Light Group', width = tmpRowWidth[0])
+        pwUtils.fillOptionMenuWithElements(['Every'])
+        cmds.optionMenu(lightGroup, edit = True, select = 1, enable = False)
+        cmds.separator(width = self.rowHorizontalGap, style = 'none')
+        cmds.button(label='Add Pass', command = partial(self.addPass_BTNAction, parentUI, self.AOVLGPasses, -1, ['Every'], 0, False, False, 'LightGroup'))
+        cmds.separator(width = self.rowHorizontalGap, style = 'none')
+        cmds.setParent(tempC)
         cmds.setParent(self.mainCL)
 
     def refreshInstructionUI(self):
@@ -500,6 +523,7 @@ class PW_AOVMaster(object):
     #--- UI Interaction functions from here on
     def createAOVs_BTNAction(self, *args):
         AOVConstructionObject = self.unpackAOVTulipforList(self.ListOfAOVS)
+        AOVConstructionObject = [instruction for instruction in AOVConstructionObject if instruction[1] != 'Every']
         pwUtils.createAOVs(AOVConstructionObject)
         
     def addPass_BTNAction(self, parentUI, AOVGroup, AOVIndex, LightGroup, LGIndex, createAOV, denoise, type, *args):

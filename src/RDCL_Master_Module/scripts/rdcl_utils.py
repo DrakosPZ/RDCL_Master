@@ -237,7 +237,7 @@ def getLightGroupsFromLights(lights = []):
     also corrects for data and light pass settings.
     and also only creates the AOV if Create AOV Flag is raised in the tulip
     
-    instruction: Array[(AOVPass, AOVName, Create AOV, Denoise AOV]) => the set of instructions
+    instruction: Array[(AOVPass, AOVName, Create AOV, Denoise AOV)] => the set of instructions
 """  
 def createAOVs(instructions):
     for instruction in instructions:
@@ -280,7 +280,7 @@ def createAOVs(instructions):
         # Safeguarding against datapass denoising and right parameter settings
         if AOVName in aov_params:
             type, filterType, beDenoised = aov_params[AOVName]
-            
+
         if CreateAOV:
             addAOVWithFilter(AOVPass + AOVName, type, filterType, beDenoised)
 

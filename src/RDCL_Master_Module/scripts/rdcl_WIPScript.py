@@ -466,7 +466,7 @@ class PW_AOVMaster(object):
         for index in range(len(groupList)):
             lightGroup = groupList[index]
             parentUI  = cmds.columnLayout(adjustableColumn = True)
-            self.LightGroupsCs.append((lightGroup, parentUI))
+            self.LightGroupEvery.append((lightGroup, parentUI))
             tmpRowWidth = [self.size[0]*0.3, self.size[0]*0.3, self.size[0]*0.1, self.size[0]*0.15]
             cmds.rowLayout(numberOfColumns = 7, width = self.size[0])
             cmds.separator(width = self.rowHorizontalGap, style = 'none')
