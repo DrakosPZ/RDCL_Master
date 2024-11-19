@@ -20,10 +20,6 @@ import json;
 __version__ = "0.2.1"
 __build_date__ = "August 25, 2024"
 
-##########################################################
-# global util methods
-##########################################################
-
 
 ##########################################################
 # global parameter handling
@@ -40,8 +36,36 @@ def copyRightText():
 
 
 ##########################################################
+# global util methods
+##########################################################
+
+'''
+ util function used to check and return of a given list attr, the next index free,
+ as most maya objects do not handle this on their own as far as I know?
+ 
+ target => the targeted object as a string
+ attr => the looked for attribute as a string
+ 
+ returns the next index or -1 if the attribute is not present on the target
+'''
+def getNextIndexOfListAttr(target, attr): 
+    targetNode = pmc.PyNode(target);
+    if targetNode.hasAttr(attr):
+        return targetNode.attr(attr).numConnectedElements();
+    return -1;
+
+def getNextIndexOfListAttrStrg(target,attr):
+    nextIndex =  getNextIndexOfListAttr(target, attr)
+    if nextIndex > 0:
+        return target + '.' + attr + '[' + str(nextIndex) + ']';
+    else :
+        return target + '.' + attr;
+
+
+##########################################################
 # Light Related Utils
 ##########################################################
+
 
 mayaLights = ['ambientLight','directionalLight','pointLight', 'spotLight','areaLight','volumeLight']
 
@@ -150,15 +174,12 @@ def getAOVsAsString(plainText, checkActivity, checkLightAOV = True):
     
     allAOVsString = allAOVsString[:-1];
     if checkActivity: 
-        #TODO
+        #TODO getAOVsAsString with checkLightAOV has still to be implemented
         print('getAOVsAsString with checkActivity has still to be implemented');
     if checkLightAOV: 
-        #TODO
+        #TODO getAOVsAsString with checkLightAOV has still to be implemented
         print('getAOVsAsString with checkLightAOV has still to be implemented');
     return allAOVsString;
-
-"""a counter used to properly keep track how many and which AOV connections have been added to the rendering node in maya"""
-aovPositionCounter = 1;
 
 """ 
     Add AOVs with VarianceFilterAdded as well as if the toAdd flag is raised, adds the filter necessary for the noice denoiser
@@ -170,7 +191,6 @@ aovPositionCounter = 1;
     toAdd: boolean => if the denoising filter should be added or not
 """
 def addAOVWithFilter(name, type, filterType, toAdd):
-    global aovPositionCounter;
     if name == 'crypto_asset' or name == 'crypto_material' or name == 'crypto_object':
         addCryptoAOV(name);
     else: 
@@ -178,9 +198,9 @@ def addAOVWithFilter(name, type, filterType, toAdd):
         if toAdd:
             aifilter = pmc.createNode('aiAOVFilter', n='aiAOVFilter');
             aifilter.setAttr('aiTranslator', 'variance');
-            cmds.connectAttr('defaultArnoldDriver.message', aovs.AOVInterface().getAOVNode(name)+'.outputs['+str(aovPositionCounter)+'].driver');
-            cmds.connectAttr(aifilter+'.message', aovs.AOVInterface().getAOVNode(name)+'.outputs['+str(aovPositionCounter)+'].filter');
-    aovPositionCounter+=1;
+            outputsPlug = getNextIndexOfListAttrStrg(aovs.AOVInterface().getAOVNode(name), 'outputs')
+            cmds.connectAttr('defaultArnoldDriver.message', outputsPlug + '.driver');
+            cmds.connectAttr(aifilter+'.message', outputsPlug + '.filter');
     
 """ 
     Adds cryptomatte AOV to render AOVs.
