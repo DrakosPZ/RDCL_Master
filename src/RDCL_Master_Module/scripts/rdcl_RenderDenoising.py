@@ -49,7 +49,7 @@ class PW_DeactivateAllAOVs(object):
     def switchOffAllAOVsForActive(self):
         rs = renderSetup.instance() 
         layer = rs.getVisibleRenderLayer()
-        if not isinstance(layer, maya.app.renderSetup.model.renderLayer.DefaultRenderLayer):
+        if not isinstance(layer, 'maya.app.renderSetup.model.renderLayer.DefaultRenderLayer'):
             collections = layer.getCollections()
             for collection in collections:
                 if 'AOVCollection' in collection.name():
@@ -132,7 +132,7 @@ class PW_AOVMaster(object):
                 ('albedo', 'None', True, False, 'Base'),
                 ('background', 'None', True, False, 'Base')
             ]),
-            ('Full_DetailAssembly', [
+            ('Denoised_DetailAssembly', [
                 ('crypto_object', 'None', True, False, 'Util'),
                 ('N', 'None', True, False, 'Util'),
                 ('P', 'None', True, False, 'Util'),
@@ -167,7 +167,7 @@ class PW_AOVMaster(object):
                 ('shadow_matte', 'Every', True, True, 'LightGroup'),
                 ('volume', 'Every', True, True, 'LightGroup')
             ]),
-            ('Full_Simple', [
+            ('Denoised_Simple', [
                 ('crypto_object', 'None', True, False, 'Util'),
                 ('N', 'None', True, False, 'Util'),
                 ('P', 'None', True, False, 'Util'),
@@ -186,7 +186,7 @@ class PW_AOVMaster(object):
                 ('shadow_matte', 'Every', True, True, 'LightGroup'),
                 ('volume', 'Every', True, True, 'LightGroup')
             ]),
-            ('Full_RGBA', [
+            ('Denoised_RGBA', [
                 ('crypto_object', 'None', True, False, 'Util'),
                 ('N', 'None', True, False, 'Util'),
                 ('P', 'None', True, False, 'Util'),
@@ -196,7 +196,7 @@ class PW_AOVMaster(object):
                 ('background', 'None', True, True, 'Base'),
                 ('RGBA', 'Every', True, True, 'LightGroup')
             ]),
-            ('Full_Direct_Indirect', [
+            ('Denoised_Direct_Indirect', [
                 ('crypto_object', 'None', True, False, 'Util'),
                 ('N', 'None', True, False, 'Util'),
                 ('P', 'None', True, False, 'Util'),
@@ -581,6 +581,7 @@ class PW_AOVMaster(object):
         if len(dialogResult) > 0:
             pickedFile = dialogResult[0]
             file = open(pickedFile, "w")
+            print(pwUtils.jsonfy(AOVConstructionObject))
             file.write(pwUtils.jsonfy(AOVConstructionObject))
             file.close()
             cmds.confirmDialog(

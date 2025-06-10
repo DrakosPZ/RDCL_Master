@@ -17,8 +17,8 @@ import json;
 # global parameters
 ##########################################################
 
-__version__ = "0.2.1"
-__build_date__ = "August 25, 2024"
+__version__ = "0.3.1"
+__build_date__ = "June 10, 2025"
 
 
 ##########################################################
@@ -61,6 +61,20 @@ def getNextIndexOfListAttrStrg(target,attr):
     else :
         return target + '.' + attr;
 
+def removeShapeRef(ref):
+    ref = ref[:ref.rfind('|')]
+    return ref
+
+def getMayaFile(ext = False):
+    sceneNameLong = cmds.file(q= True, sn= True)
+
+    splitName = sceneNameLong.split("/")
+    sceneName = ''
+    if ext == True:
+        sceneName = splitName[-1]
+    else:
+        sceneName = splitName[-1].split(".")[0]
+    return sceneName
 
 ##########################################################
 # Light Related Utils
@@ -69,7 +83,7 @@ def getNextIndexOfListAttrStrg(target,attr):
 
 mayaLights = ['ambientLight','directionalLight','pointLight', 'spotLight','areaLight','volumeLight']
 
-arnoldLights = ['aiAreaLight','aiSkyDomeLight','aiPhotometricLight','aiLightPortal'];
+arnoldLights = ['aiAreaLight','aiSkyDomeLight','aiPhotometricLight','aiLightPortal', 'aiMeshLight'];
 
 allLights = mayaLights + arnoldLights;
 
@@ -112,6 +126,25 @@ def lightIsOfType(lightStr, lightTypes):
 # Rendering and AOV Related Utils
 ##########################################################
 
+
+'''
+ pre set Playblast Method
+ st: startFrame
+ et: endFrame
+ folder: folder
+ filename: filename
+ fmt: format
+ c: compression
+ orn: display ornaments
+ fo: force Overwritte already present files
+ v: if a viewer should be opened once finished
+'''
+def playBlast(st, et, folder, filename, fmt = "qt", c = "H.264", orn = False, fo = True, v = False):
+    f = folder + filename
+    w = cmds.getAttr("defaultResolution.width")
+    h = cmds.getAttr("defaultResolution.height")
+    p = 100
+    cmds.playblast(v=v, st=st, et=et, f=f, fmt=fmt, orn=orn, fo=fo, c=c, w=w, h=h, p=p)
 
 '''
  get All AOVs
@@ -224,7 +257,7 @@ def addCryptoAOV(name):
     lights: Array[strings] => an array of strings, containign all types of ligths to be returned
         by default set to only return arnold lights
 """
-def getLights(lights = ['aiAreaLight','aiSkyDomeLight','aiPhotometricLight','aiLightPortal']):
+def getLights(lights = ['aiAreaLight', 'aiMeshLight','aiSkyDomeLight','aiPhotometricLight','aiLightPortal', 'directionalLight', 'pointLight', 'spotLight', 'areaLight']):
     return pmc.ls(type = lights)
 
 """ 

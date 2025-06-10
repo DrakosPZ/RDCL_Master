@@ -153,6 +153,8 @@ class PW_SetLightGroupsToNames(object):
             else:
                 lights = pwUtils.getLights(lightsToFilter);
         for light in lights:
+            if light.find('|')!=-1:
+                light = light.split('|')[-1]
             aovName = re.sub(nameChangingRegEx, '', str(light))
             aovName = aovName.replace('Shape', '')
             try:
